@@ -1,0 +1,59 @@
+version: '3.9'
+
+services:
+
+  mongo-express:
+    image: mongo-express:latest
+    container_name: mongoExpress
+    environment:
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=admin
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=password
+    ports:
+      - "8084:8081"
+    depends_on:
+      - mongo-booking
+      - mongo-approval
+      - mongo-event
+
+
+  mongo-booking:
+    image: mongo:latest
+    container_name: mongo-booking
+    ports:
+      - "27025:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password
+      - MONGO_INITDB_DATABASE=admin
+    volumes:
+      - ./data/mongo/booking:/data/db
+      - ./mongo/init/docker-entrypoint-initdb.d/booking-init.js:/docker-entrypoint-initdb.d/booking-init.js
+
+
+  #  # MongoDB for EventService
+  mongo-event:
+    image: mongo:latest
+    container_name: mongo-event
+    ports:
+      - "27024:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password
+      - MONGO_INITDB_DATABASE=admin
+    volumes:
+      - ./data/mongo/event:/data/db
+      - ./mongo/init/docker-entrypoint-initdb.d/event-init.js:/docker-entrypoint-initdb.d/event-init.js
+
+  #  # MongoDB for ApprovalService
+  mongo-approval:
+    image: mongo:latest
+    container_name: mongo-approval
+    ports:
+      - "27023:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password
+      - MONGO_INITDB_DATABASE=admin
+    volumes:
+      - ./data/mongo/approval:/data/db
+      - ./mongo/init/docker-entrypoint-initdb.d/approval-init.js:/docker-entrypoint-initdb.d/approval-init.js

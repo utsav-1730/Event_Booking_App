@@ -1,0 +1,23 @@
+{
+  "type": "record",
+  "name": "BookingEvent",
+  "namespace": "ca.gbc.bookingservice.event",
+  "fields": [
+    {
+      "name": "bookingId",
+      "type": "string"
+    },
+    {
+      "name": "useremail",
+      "type": "string"
+    },
+    {
+      "name": "roomId",
+      "type": "string"
+    },
+    {
+      "name": "bookingDate",
+      "type": "string"
+    }
+  ]
+}

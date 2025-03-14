@@ -1,0 +1,363 @@
+##-----------------------------------
+## 1.docker-compose -p microservices-comp3095-ecommerce -f docker-compose.yml up -d
+##        ---- the above command will start the containers in detached mode without rebuilding the images (if they already exists)
+##
+##
+## 2.docker-compose -p microservices-comp3095-ecommerce -f docker-compose.yml up -d --build
+##     ----this command forces the rebuild of images, even if the images already exists, before starting the container
+##
+##
+##----------------------------------------------
+#
+version: '3.9'
+
+services:
+  # MongoDB for BookingService
+  mongo-booking:
+    image: mongo:latest
+    container_name: mongo-booking
+    ports:
+      - "27025:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password
+      - MONGO_INITDB_DATABASE=admin
+    volumes:
+      - ./data/mongo/booking:/data/db
+      - ./init/mongo/docker-entrypoint-initdb.d/booking-init.js:/docker-entrypoint-initdb.d/booking-init.js:ro
+    networks:
+      - boot
+    healthcheck:
+      test: [ "CMD", "mongo", "--eval", "db.runCommand({ ping: 1 })" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+
+
+#  # MongoDB for EventService
+  mongo-event:
+    image: mongo:latest
+    container_name: mongo-event
+    ports:
+      - "27024:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password
+      - MONGO_INITDB_DATABASE=admin
+    volumes:
+      - ./data/mongo/event:/data/db
+      - ./init/mongo/docker-entrypoint-initdb.d/event-init.js:/docker-entrypoint-initdb.d/event-init.js:ro
+    networks:
+      - boot
+    healthcheck:
+      test: [ "CMD", "mongo", "--eval", "db.runCommand({ ping: 1 })" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+
+
+#  # MongoDB for ApprovalService
+  mongo-approval:
+    image: mongo:latest
+    container_name: mongo-approval
+    ports:
+      - "27023:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password
+      - MONGO_INITDB_DATABASE=admin
+    volumes:
+      - ./data/mongo/approval:/data/db
+      - ./init/mongo/docker-entrypoint-initdb.d/approval-init.js:/docker-entrypoint-initdb.d/approval-init.js:ro
+    networks:
+      - boot
+    healthcheck:
+      test: [ "CMD", "mongo", "--eval", "db.runCommand({ ping: 1 })" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+
+#  # PostgreSQL for RoomService
+  postgres-room:
+    image: postgres
+    container_name: postgresRoom
+    ports:
+      - "5434:5432"
+    environment:
+      - POSTGRES_DB=room-service
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - ./data/room:/var/lib/postgresql/data
+      - ./init/postgres/room/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - boot
+
+
+  # PostgreSQL for UserService
+  postgres-user:
+    image: postgres
+    ports:
+      - "5435:5432"
+    container_name: postgresUser
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=user-service
+    volumes:
+      - ./data/user:/var/lib/postgresql/data
+      - ./init/postgres/user/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - boot
+
+
+#  # BookingService
+  booking-service:
+    image: booking-service
+    ports:
+      - "8093:8093"
+    build:
+      context: ./booking-service
+      dockerfile: ./Dockerfile
+    container_name: booking-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATA_MONGODB_URI: mongodb://admin:password@mongo-booking:27017/booking-service?authSource=admin
+    depends_on:
+      - mongo-booking
+    networks:
+      - boot
+
+
+#  # RoomService
+  room-service:
+    image: room-service
+    ports:
+      - "8090:8090"
+    build:
+      context: ./room-service
+      dockerfile: ./Dockerfile
+    container_name: room-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-room:5432/room-service
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: password
+    depends_on:
+      - postgres-room
+    networks:
+      - boot
+
+   #EventService
+  event-service:
+    image: event-service
+    ports:
+      - "8092:8092"
+    build:
+      context: ./event-service
+      dockerfile: ./Dockerfile
+    container_name: event-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATA_MONGODB_URI: mongodb://admin:password@mongo-event:27017/event-service?authSource=admin
+    depends_on:
+      - mongo-event
+    networks:
+      - boot
+  # UserService
+
+  user-service:
+    image: user-service
+    ports:
+      - "8091:8091"
+    build:
+      context: ./user-service
+      dockerfile: ./Dockerfile
+    container_name: user-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-user:5432/user-service
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: password
+    depends_on:
+      - postgres-user
+    networks:
+      - boot
+  # ApprovalService
+  approval-service:
+    image: approval-service
+    ports:
+      - "8094:8094"
+    build:
+      context: ./approval-service
+      dockerfile: ./Dockerfile
+    container_name: approval-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATA_MONGODB_URI: mongodb://admin:password@mongo-approval:27017/approval-service?authSource=admin
+    depends_on:
+      - mongo-approval
+    networks:
+      - boot
+
+
+  pgadmin:
+    image: dpage/pgadmin4
+    ports:
+      - "8892:80"
+    container_name: pgadmin-gbceventbooking
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=user@domain.ca
+      - PGADMIN_DEFAULT_PASSWORD=password
+    networks:
+      - boot
+
+    # Mongo Express for MongoDB management
+  mongo-express:
+      image: mongo-express:latest
+      container_name: mongoExpress
+      environment:
+        - ME_CONFIG_MONGODB_ADMINUSERNAME=admin
+        - ME_CONFIG_MONGODB_ADMINPASSWORD=password
+        - ME_CONFIG_MONGODB_SERVER=mongo-booking
+      ports:
+        - "8084:8081"
+      depends_on:
+        - mongo-booking
+        - mongo-approval
+        - mongo-event
+      networks:
+        - boot
+
+  api-gateway-eventbooking:
+    image: api-gateway-eventbooking
+    ports:
+      - "8011:8011"
+    build:
+      context: ./api-gateway
+      dockerfile: ./Dockerfile
+    container_name: api-gateway-eventbooking
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    networks:
+      - boot
+
+  keycloak-eventbooking:
+    container_name: keycloak-eventbooking
+    hostname: keycloak
+    image: quay.io/keycloak/keycloak:24.0.1
+    command: [ "start-dev","--import-realm" ]
+    environment:
+      DB_VENDOR: postgres
+      DB_ADDR: postgres-keycloak-eventbooking
+      DB_DATABASE: keycloak-eventbooking
+      DB_USER: admin
+      DB_PASSWORD: password
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: password
+      ROOT_LOGLEVEL: DEBUG
+      JBOSS_LOG_MANAGER_ROOT_LOGGER: DEBUG,stdout,FILE
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./realms/:/opt/keycloak/data/import
+    depends_on:
+      - postgres-keycloak-eventbooking
+    networks:
+      - boot
+
+  postgres-keycloak-eventbooking:
+    image: postgres
+    ports:
+      - "5414:5432"
+    container_name: postgres-keycloak-eventbooking
+    environment:
+      - POSTGRES_DB=keycloak-eventbooking
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - ./data/postgres/keycloak:/var/lib/postgresql/data
+    networks:
+      - boot
+
+  zookeeper:
+    container_name: zookeeper
+    hostname: zookeeper
+    image: confluentinc/cp-zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - boot
+
+  broker:
+    container_name: broker
+    image: confluentinc/cp-kafka:7.5.0
+    ports:
+      #wxternal connections to broker outside docker use 9092 and host.docker.internal
+      - "9092:9092"
+      #internal connections(inside docker) and container host name broker
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:29092 , PLAINTEXT_HOST://host.docker.internal:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    depends_on:
+      - zookeeper
+    networks:
+      - boot
+
+  kafka_ui:
+    container_name: kafka_ui
+    image: provectuslabs/kafka-ui
+    ports:
+      - "8015:8080"
+    environment:
+      KAFKA_CLUSTER_NAME: local
+      KAFKA_CLUSTER_BOOTSTRAPSERVER: broker:9092
+      KAFKA_CLUSTERS_SCHEMA_REGISTRY: http://schema-registry:8081
+      DYNAMIC_CONFIG_ENABLED: 'true'
+    depends_on:
+      - broker
+    networks:
+      - boot
+
+  schema-registry:
+    container_name: schema-registry
+    image: confluentinc/cp-schema-registry:7.5.0
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'broker:29092'
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    depends_on:
+      - broker
+    networks:
+      - boot
+
+volumes:
+  mongo-event:
+    driver: local
+  mongo-booking:
+    driver: local
+  mongo-approval:
+    driver: local
+  posgres-user:
+    driver: local
+  posgres-room:
+    driver: local
+  postgres-keycloak-eventbooking:
+    driver: local
+networks:
+  boot:
+    driver: bridge
+
+
